@@ -11,6 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter_map(|line| line.parse().ok())
         .collect();
 
+    // Part 1
     let start = Instant::now();
     if let Some((smaller_term, larger_term)) = find_pair(&values, 0, TARGET) {
         println!(
@@ -22,6 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
     }
 
+    // Part 2
     let start = Instant::now();
     for &smaller_term in values.iter() {
         if let Some((medium_term, larger_term)) =
@@ -42,6 +44,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// If possible, return `a` and `b`, two elements of `values` that respect:
+/// 1. `a + b = target`
+/// 2. `min_value <= a <= b`
 fn find_pair(values: &BTreeSet<i32>, min_value: i32, target: i32) -> Option<(i32, i32)> {
     for &medium_term in values.range(min_value..) {
         let larger_term = target - medium_term;
