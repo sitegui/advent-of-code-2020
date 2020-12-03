@@ -2,7 +2,7 @@ use crate::parser::Parser;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub fn solve() {
+pub fn solve() -> (usize, usize) {
     let file = BufReader::new(File::open("data/input-2").unwrap());
 
     let mut valid_part_1 = 0;
@@ -26,6 +26,5 @@ pub fn solve() {
         }
     }
 
-    eprintln!("valid_part_1 = {:?}", valid_part_1);
-    eprintln!("valid_part_2 = {:?}", valid_part_2);
+    (valid_part_1, valid_part_2)
 }
