@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
-use std::error::Error;
 use std::fs;
 use std::time::Instant;
 
 const TARGET: i32 = 2020;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let values: BTreeSet<i32> = fs::read_to_string("data/input-1")?
+pub fn solve() {
+    let values: BTreeSet<i32> = fs::read_to_string("data/input-1")
+        .unwrap()
         .split("\n")
         .filter_map(|line| line.parse().ok())
         .collect();
@@ -40,8 +40,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
     }
-
-    Ok(())
 }
 
 /// If possible, return `a` and `b`, two elements of `values` that respect:

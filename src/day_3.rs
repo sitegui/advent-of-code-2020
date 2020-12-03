@@ -2,7 +2,7 @@ use itertools::Itertools;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-fn main() {
+pub fn solve() {
     let map = BufReader::new(File::open("data/input-3").unwrap())
         .lines()
         .map(|line| line.unwrap().chars().collect_vec())

@@ -1,17 +1,14 @@
-mod parser;
-
 use crate::parser::Parser;
-use std::error::Error;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let file = BufReader::new(File::open("data/input-2")?);
+pub fn solve() {
+    let file = BufReader::new(File::open("data/input-2").unwrap());
 
     let mut valid_part_1 = 0;
     let mut valid_part_2 = 0;
     for line in file.lines() {
-        let line = line?;
+        let line = line.unwrap();
         let mut parser = Parser::new(&line);
 
         let n1: usize = parser.consume_until('-').unwrap().parse().unwrap();
@@ -31,6 +28,4 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     eprintln!("valid_part_1 = {:?}", valid_part_1);
     eprintln!("valid_part_2 = {:?}", valid_part_2);
-
-    Ok(())
 }
