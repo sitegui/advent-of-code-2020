@@ -38,16 +38,26 @@ impl<'a> Iterator for Lines<'a> {
     }
 }
 
-pub trait ParseBytes {
-    fn try_parse_bytes<F: FromStr>(&self) -> Option<F>;
+pub trait TryFromBytes: Sized {
+    fn try_from_bytes(bytes: &[u8]) -> Option<Self>;
+}
 
-    fn parse_bytes<F: FromStr>(&self) -> F {
+impl<T: FromStr> TryFromBytes for T {
+    fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
+        std::str::from_utf8(bytes).ok().and_then(|s| s.parse().ok())
+    }
+}
+
+pub trait ParseBytes {
+    fn try_parse_bytes<F: TryFromBytes>(&self) -> Option<F>;
+
+    fn parse_bytes<F: TryFromBytes>(&self) -> F {
         self.try_parse_bytes().unwrap()
     }
 }
 
 impl ParseBytes for [u8] {
-    fn try_parse_bytes<F: FromStr>(&self) -> Option<F> {
-        std::str::from_utf8(self).ok().and_then(|s| s.parse().ok())
+    fn try_parse_bytes<F: TryFromBytes>(&self) -> Option<F> {
+        F::try_from_bytes(self)
     }
 }
