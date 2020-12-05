@@ -1,12 +1,9 @@
+use crate::data::Data;
 use itertools::Itertools;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 pub fn solve() -> (usize, usize) {
-    let map = BufReader::new(File::open("data/input-3").unwrap())
-        .lines()
-        .map(|line| line.unwrap().chars().collect_vec())
-        .collect_vec();
+    let data = Data::read(3);
+    let map = data.lines().collect_vec();
 
     let trees_1_1 = trees_in_path(&map, 1, 1);
     let trees_3_1 = trees_in_path(&map, 3, 1);
@@ -20,11 +17,11 @@ pub fn solve() -> (usize, usize) {
 
 /// Return the number of trees encountered following a path with the given slope from the top left
 /// of the map.
-fn trees_in_path(map: &[Vec<char>], slope_right: usize, slope_down: usize) -> usize {
+fn trees_in_path(map: &[&[u8]], slope_right: usize, slope_down: usize) -> usize {
     let mut pos_x = 0;
     let mut num_trees = 0;
     for row in map.iter().step_by(slope_down) {
-        if row[pos_x % row.len()] == '#' {
+        if row[pos_x % row.len()] == b'#' {
             num_trees += 1;
         }
         pos_x += slope_right;

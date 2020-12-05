@@ -1,6 +1,5 @@
+use crate::data::{Data, ParseBytes};
 use crate::parser::Parser;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 
 #[derive(Default, Debug)]
 struct Passport {
@@ -28,8 +27,6 @@ impl Default for Field {
 }
 
 pub fn solve() -> (usize, usize) {
-    let file = BufReader::new(File::open("data/input-4").unwrap());
-
     let mut passport = Passport::default();
     let mut num_valid_1 = 0;
     let mut num_valid_2 = 0;
@@ -44,9 +41,7 @@ pub fn solve() -> (usize, usize) {
         *passport = Passport::default();
     };
 
-    for line in file.lines() {
-        let line = line.unwrap();
-
+    for line in Data::read(4).lines() {
         if line.is_empty() {
             check_validity(&mut passport);
             continue;
@@ -54,8 +49,8 @@ pub fn solve() -> (usize, usize) {
 
         let mut parser = Parser::new(&line);
         loop {
-            let field = parser.consume_until(':').unwrap();
-            match parser.consume_until(' ') {
+            let field = parser.consume_until(b':');
+            match parser.try_consume_until(b' ') {
                 None => {
                     passport.update(field, parser.into_inner());
                     break;
@@ -73,32 +68,34 @@ pub fn solve() -> (usize, usize) {
 }
 
 impl Passport {
-    fn update(&mut self, field: &str, value: &str) {
+    fn update(&mut self, field: &[u8], value: &[u8]) {
         match field {
-            "byr" => self.byr = Passport::check_int(value, 1920, 2002),
-            "iyr" => self.iyr = Passport::check_int(value, 2010, 2020),
-            "eyr" => self.eyr = Passport::check_int(value, 2020, 2030),
-            "hgt" => self.hgt = Passport::check_hgt(value),
-            "hcl" => self.hcl = Passport::check_hcl(value),
-            "ecl" => self.ecl = Passport::check_ecl(value),
-            "pid" => self.pid = Passport::check_pid(value),
-            "cid" => self.cid = Field::Valid,
+            b"byr" => self.byr = Passport::check_int(value, 1920, 2002),
+            b"iyr" => self.iyr = Passport::check_int(value, 2010, 2020),
+            b"eyr" => self.eyr = Passport::check_int(value, 2020, 2030),
+            b"hgt" => self.hgt = Passport::check_hgt(value),
+            b"hcl" => self.hcl = Passport::check_hcl(value),
+            b"ecl" => self.ecl = Passport::check_ecl(value),
+            b"pid" => self.pid = Passport::check_pid(value),
+            b"cid" => self.cid = Field::Valid,
             _ => unreachable!(),
         }
     }
 
-    fn check_hgt(value: &str) -> Field {
-        if value.ends_with("cm") {
+    fn check_hgt(value: &[u8]) -> Field {
+        if value.ends_with(b"cm") {
             Passport::check_int(&value[..value.len() - 2], 150, 193)
-        } else if value.ends_with("in") {
+        } else if value.ends_with(b"in") {
             Passport::check_int(&value[..value.len() - 2], 59, 76)
         } else {
             Field::Invalid
         }
     }
 
-    fn check_hcl(value: &str) -> Field {
-        if value.starts_with('#') && value.len() == 7 && value.chars().skip(1).all(Passport::is_hex)
+    fn check_hcl(value: &[u8]) -> Field {
+        if value.starts_with(b"#")
+            && value.len() == 7
+            && value.iter().skip(1).all(|&byte| Passport::is_hex(byte))
         {
             Field::Valid
         } else {
@@ -106,29 +103,29 @@ impl Passport {
         }
     }
 
-    fn check_int(value: &str, min: i32, max: i32) -> Field {
-        match value.parse::<i32>() {
-            Ok(n) if n >= min && n <= max => Field::Valid,
+    fn check_int(value: &[u8], min: i32, max: i32) -> Field {
+        match value.try_parse_bytes::<i32>() {
+            Some(n) if n >= min && n <= max => Field::Valid,
             _ => Field::Invalid,
         }
     }
 
-    fn is_hex(c: char) -> bool {
+    fn is_hex(c: u8) -> bool {
         match c {
-            '0'..='9' | 'a'..='f' => true,
+            b'0'..=b'9' | b'a'..=b'f' => true,
             _ => false,
         }
     }
 
-    fn check_ecl(value: &str) -> Field {
+    fn check_ecl(value: &[u8]) -> Field {
         match value {
-            "amb" | "blu" | "brn" | "gry" | "grn" | "hzl" | "oth" => Field::Valid,
+            b"amb" | b"blu" | b"brn" | b"gry" | b"grn" | b"hzl" | b"oth" => Field::Valid,
             _ => Field::Invalid,
         }
     }
 
-    fn check_pid(value: &str) -> Field {
-        if value.len() == 9 && value.chars().all(|c| c.is_ascii_digit()) {
+    fn check_pid(value: &[u8]) -> Field {
+        if value.len() == 9 && value.iter().all(|&c| c.is_ascii_digit()) {
             Field::Valid
         } else {
             Field::Invalid

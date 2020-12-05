@@ -1,6 +1,9 @@
+#![allow(clippy::naive_bytecount)]
+
 use std::env::args;
 use std::time::Instant;
 
+mod data;
 mod parser;
 
 struct Day {

@@ -1,13 +1,12 @@
+use crate::data::{Data, ParseBytes};
 use std::collections::BTreeSet;
-use std::fs;
 
 const TARGET: usize = 2020;
 
 pub fn solve() -> (usize, usize) {
-    let values: BTreeSet<usize> = fs::read_to_string("data/input-1")
-        .unwrap()
-        .split("\n")
-        .filter_map(|line| line.parse().ok())
+    let values: BTreeSet<usize> = Data::read(1)
+        .lines()
+        .map(|line| line.parse_bytes())
         .collect();
 
     // Part 1
