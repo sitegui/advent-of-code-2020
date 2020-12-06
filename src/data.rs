@@ -30,6 +30,13 @@ impl Data {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn read_example() -> Self {
+        Data {
+            bytes: fs::read("data/example").unwrap(),
+        }
+    }
+
     pub fn split(&self, separator: u8, ignore_last_empty: bool) -> Split<'_> {
         Split {
             parser: Parser::new(&self.bytes),
