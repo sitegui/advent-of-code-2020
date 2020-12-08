@@ -45,7 +45,7 @@ pub fn solve() -> (usize, usize) {
             }
         },
     );
-    let (part_1, mut executed_instructions) = match result {
+    let (part_1, doomed_instructions) = match result {
         ExecutionResult::Loop {
             final_state,
             executed_instructions,
@@ -58,18 +58,14 @@ pub fn solve() -> (usize, usize) {
     let mut part_2 = None;
     for (instruction, mut state) in fixable.into_iter().rev() {
         // Execute the fixed instruction, instead of the original
-        let instruction_id = state.next_instruction;
         instruction.fixed().execute(&mut state);
 
         // Check if the execution now finishes
-        let result = run_program(&program, state, &executed_instructions, |_, _| {});
+        let result = run_program(&program, state, &doomed_instructions, |_, _| {});
         if let ExecutionResult::Finished { final_state } = result {
             part_2 = Some(final_state.accumulator as usize);
             break;
         }
-
-        // Prepare to try previous instruction
-        executed_instructions.remove(&instruction_id);
     }
 
     (part_1 as usize, part_2.unwrap())
