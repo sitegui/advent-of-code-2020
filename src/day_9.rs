@@ -5,8 +5,8 @@ use itertools::Itertools;
 
 const PREAMBLE: usize = 25;
 
-pub fn solve() -> (usize, usize) {
-    let data: Vec<u64> = Data::read(9)
+pub fn solve() -> (i64, i64) {
+    let data: Vec<i64> = Data::read(9)
         .lines()
         .map(|line| line.parse_bytes())
         .collect();
@@ -28,10 +28,10 @@ pub fn solve() -> (usize, usize) {
         }
     }
 
-    (part_1 as usize, part_2.unwrap() as usize)
+    (part_1, part_2.unwrap())
 }
 
-fn is_valid(previous: &[u64], value: u64) -> bool {
+fn is_valid(previous: &[i64], value: i64) -> bool {
     for (a, b) in previous.iter().tuple_combinations() {
         if a + b == value {
             return true;
@@ -41,7 +41,7 @@ fn is_valid(previous: &[u64], value: u64) -> bool {
     false
 }
 
-fn contiguous_sum(values: &[u64], target: u64) -> Option<(u64, u64)> {
+fn contiguous_sum(values: &[i64], target: i64) -> Option<(i64, i64)> {
     let mut sum = values[0];
 
     for (index, &value) in values.iter().enumerate().skip(1) {

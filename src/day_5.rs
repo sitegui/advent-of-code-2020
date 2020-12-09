@@ -12,7 +12,7 @@ enum SeatState {
     Available,
 }
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let mut seat_states = vec![SeatState::Available; BoardingPass::NUM_SEATS];
     let mut max_used_seat = 0;
 
@@ -37,7 +37,7 @@ pub fn solve() -> (usize, usize) {
         }
     }
 
-    (max_used_seat, my_seat_id)
+    (max_used_seat as i64, my_seat_id as i64)
 }
 
 impl TryFromBytes for BoardingPass {

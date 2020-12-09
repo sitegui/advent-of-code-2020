@@ -1,7 +1,7 @@
 use crate::data::{Data, ParseBytes};
 use crate::parser::Parser;
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let mut valid_part_1 = 0;
     let mut valid_part_2 = 0;
     for line in Data::read(2).lines() {

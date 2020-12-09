@@ -8,11 +8,11 @@ struct GroupForm {
 
 #[derive(Debug, Default)]
 struct QuestionsTally {
-    any_yes: usize,
-    all_yes: usize,
+    any_yes: i64,
+    all_yes: i64,
 }
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let data = Data::read(6);
 
     let mut total_tally = QuestionsTally::default();

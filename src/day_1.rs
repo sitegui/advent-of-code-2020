@@ -1,10 +1,10 @@
 use crate::data::{Data, ParseBytes};
 use std::collections::BTreeSet;
 
-const TARGET: usize = 2020;
+const TARGET: i64 = 2020;
 
-pub fn solve() -> (usize, usize) {
-    let values: BTreeSet<usize> = Data::read(1)
+pub fn solve() -> (i64, i64) {
+    let values: BTreeSet<i64> = Data::read(1)
         .lines()
         .map(|line| line.parse_bytes())
         .collect();
@@ -29,7 +29,7 @@ pub fn solve() -> (usize, usize) {
 /// If possible, return `a` and `b`, two elements of `values` that respect:
 /// 1. `a + b = target`
 /// 2. `min_value <= a <= b`
-fn find_pair(values: &BTreeSet<usize>, min_value: usize, target: usize) -> Option<(usize, usize)> {
+fn find_pair(values: &BTreeSet<i64>, min_value: i64, target: i64) -> Option<(i64, i64)> {
     for &medium_term in values.range(min_value..) {
         let larger_term = target - medium_term;
         if medium_term > larger_term {

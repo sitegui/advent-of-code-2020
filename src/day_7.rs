@@ -30,14 +30,14 @@ impl<'a> Rules<'a> {
             .unwrap_or_default()
     }
 
-    fn total_bags_inside(&self, outside_color: &'a [u8]) -> usize {
+    fn total_bags_inside(&self, outside_color: &'a [u8]) -> i64 {
         self.contains
             .get(&outside_color)
             .map(|contained| {
                 contained
                     .iter()
                     .map(|&(num, inside_color)| {
-                        num as usize * (1 + self.total_bags_inside(inside_color))
+                        num as i64 * (1 + self.total_bags_inside(inside_color))
                     })
                     .sum()
             })
@@ -45,7 +45,7 @@ impl<'a> Rules<'a> {
     }
 }
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let data = Data::read(7);
 
     let mut rules = Rules::default();
@@ -90,7 +90,7 @@ pub fn solve() -> (usize, usize) {
     }
 
     (
-        considered_outside.len(),
+        considered_outside.len() as i64,
         rules.total_bags_inside(INITIAL_COLOR),
     )
 }

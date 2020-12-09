@@ -1,7 +1,7 @@
 use crate::data::Data;
 use itertools::Itertools;
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let data = Data::read(3);
     let map = data.lines().collect_vec();
 
@@ -17,7 +17,7 @@ pub fn solve() -> (usize, usize) {
 
 /// Return the number of trees encountered following a path with the given slope from the top left
 /// of the map.
-fn trees_in_path(map: &[&[u8]], slope_right: usize, slope_down: usize) -> usize {
+fn trees_in_path(map: &[&[u8]], slope_right: usize, slope_down: usize) -> i64 {
     let mut pos_x = 0;
     let mut num_trees = 0;
     for row in map.iter().step_by(slope_down) {

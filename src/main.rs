@@ -8,12 +8,12 @@ mod parser;
 
 struct Day {
     label: &'static str,
-    solve_fn: fn() -> (usize, usize),
-    expected: (usize, usize),
+    solve_fn: fn() -> (i64, i64),
+    expected: (i64, i64),
 }
 
 impl Day {
-    fn solve(&self) -> (usize, usize) {
+    fn solve(&self) -> (i64, i64) {
         let start = Instant::now();
         let answer = (self.solve_fn)();
         println!("{} solved in {:?}", self.label, start.elapsed());

@@ -27,7 +27,7 @@ enum ExecutionResult {
     },
 }
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let data = Data::read(8);
 
     let program: Vec<Instruction> = data.lines().map(|line| line.parse_bytes()).collect();
@@ -63,12 +63,12 @@ pub fn solve() -> (usize, usize) {
         // Check if the execution now finishes
         let result = run_program(&program, state, &doomed_instructions, |_, _| {});
         if let ExecutionResult::Finished { final_state } = result {
-            part_2 = Some(final_state.accumulator as usize);
+            part_2 = Some(final_state.accumulator as i64);
             break;
         }
     }
 
-    (part_1 as usize, part_2.unwrap())
+    (part_1 as i64, part_2.unwrap())
 }
 
 fn run_program<F: FnMut(Instruction, State)>(

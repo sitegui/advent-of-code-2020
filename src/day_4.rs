@@ -26,7 +26,7 @@ impl Default for Field {
     }
 }
 
-pub fn solve() -> (usize, usize) {
+pub fn solve() -> (i64, i64) {
     let mut passport = Passport::default();
     let mut num_valid_1 = 0;
     let mut num_valid_2 = 0;
