@@ -8,6 +8,12 @@ impl<'a> Parser<'a> {
         Parser(inner)
     }
 
+    pub fn consume_byte(&mut self) -> u8 {
+        let result = self.0[0];
+        self.0 = &self.0[1..];
+        result
+    }
+
     pub fn consume_bytes(&mut self, n: usize) -> &'a [u8] {
         let result = &self.0[..n];
         self.0 = &self.0[n..];

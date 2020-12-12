@@ -41,16 +41,16 @@ pub fn solve() -> (i64, i64) {
 
 impl TryFromBytes for Command {
     fn try_from_bytes(mut bytes: Parser) -> Option<Self> {
-        let op = bytes.consume_bytes(1);
+        let op = bytes.consume_byte();
         let num: i16 = bytes.parse_bytes();
         let result = match op {
-            b"N" => Command::Move(0, num),
-            b"S" => Command::Move(0, -num),
-            b"E" => Command::Move(num, 0),
-            b"W" => Command::Move(-num, 0),
-            b"R" => Command::Turn(num),
-            b"L" => Command::Turn(-num),
-            b"F" => Command::Forward(num),
+            b'N' => Command::Move(0, num),
+            b'S' => Command::Move(0, -num),
+            b'E' => Command::Move(num, 0),
+            b'W' => Command::Move(-num, 0),
+            b'R' => Command::Turn(num),
+            b'L' => Command::Turn(-num),
+            b'F' => Command::Forward(num),
             _ => unreachable!(),
         };
 
