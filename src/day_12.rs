@@ -40,11 +40,9 @@ pub fn solve() -> (i64, i64) {
 }
 
 impl TryFromBytes for Command {
-    fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
-        let mut parser = Parser::new(bytes);
-
-        let op = parser.consume_bytes(1);
-        let num: i16 = parser.into_inner().parse_bytes();
+    fn try_from_bytes(mut bytes: Parser) -> Option<Self> {
+        let op = bytes.consume_bytes(1);
+        let num: i16 = bytes.parse_bytes();
         let result = match op {
             b"N" => Command::Move(0, num),
             b"S" => Command::Move(0, -num),

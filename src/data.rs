@@ -96,12 +96,14 @@ impl<'a> Iterator for ParagraphLines<'a> {
 }
 
 pub trait TryFromBytes: Sized {
-    fn try_from_bytes(bytes: &[u8]) -> Option<Self>;
+    fn try_from_bytes(bytes: Parser<'_>) -> Option<Self>;
 }
 
 impl<T: FromStr> TryFromBytes for T {
-    fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
-        std::str::from_utf8(bytes).ok().and_then(|s| s.parse().ok())
+    fn try_from_bytes(bytes: Parser<'_>) -> Option<Self> {
+        std::str::from_utf8(bytes.into_inner())
+            .ok()
+            .and_then(|s| s.parse().ok())
     }
 }
 
@@ -115,7 +117,7 @@ pub trait ParseBytes {
 
 impl ParseBytes for [u8] {
     fn try_parse_bytes<F: TryFromBytes>(&self) -> Option<F> {
-        F::try_from_bytes(self)
+        F::try_from_bytes(Parser::new(self))
     }
 }
 

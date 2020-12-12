@@ -1,4 +1,5 @@
 use crate::data::{Data, ParseBytes, TryFromBytes};
+use crate::parser::Parser;
 use itertools::Itertools;
 
 struct BoardingPass {
@@ -41,7 +42,7 @@ pub fn solve() -> (i64, i64) {
 }
 
 impl TryFromBytes for BoardingPass {
-    fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
+    fn try_from_bytes(bytes: Parser) -> Option<Self> {
         if bytes.len() != 10 {
             return None;
         }
