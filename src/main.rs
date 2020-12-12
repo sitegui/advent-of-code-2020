@@ -5,6 +5,7 @@ use std::time::Instant;
 
 mod data;
 mod parser;
+mod iter_utils;
 
 struct Day {
     label: &'static str,

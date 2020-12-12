@@ -1,4 +1,5 @@
-use crate::data::{Data, ParseBytes, TryFromBytes};
+use crate::data::{Data, TryFromBytes};
+use crate::iter_utils::IterUtils;
 use crate::parser::Parser;
 use itertools::Itertools;
 
@@ -17,8 +18,7 @@ pub fn solve() -> (i64, i64) {
     let mut seat_states = vec![SeatState::Available; BoardingPass::NUM_SEATS];
     let mut max_used_seat = 0;
 
-    for line in Data::read(5).lines() {
-        let boarding_pass: BoardingPass = line.parse_bytes();
+    for boarding_pass in Data::read(5).lines().parsed::<BoardingPass>() {
         let seat_id = boarding_pass.seat_id();
         seat_states[seat_id] = SeatState::Taken;
         max_used_seat = max_used_seat.max(seat_id);

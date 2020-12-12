@@ -1,4 +1,5 @@
 use crate::data::{Data, ParseBytes, TryFromBytes};
+use crate::iter_utils::IterUtils;
 use crate::parser::Parser;
 
 #[derive(Debug, Copy, Clone)]
@@ -27,8 +28,7 @@ pub fn solve() -> (i64, i64) {
     waypoint.ew = 10;
     waypoint.ns = 1;
 
-    for line in Data::read(12).lines() {
-        let command: Command = line.parse_bytes();
+    for command in Data::read(12).lines().parsed::<Command>() {
         command.apply_p1(&mut ship_p1);
         command.apply_p2(&mut ship_p2, &mut waypoint);
     }

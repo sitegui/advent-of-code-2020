@@ -1,13 +1,11 @@
-use crate::data::{Data, ParseBytes};
+use crate::data::Data;
+use crate::iter_utils::IterUtils;
 use std::collections::BTreeSet;
 
 const TARGET: i64 = 2020;
 
 pub fn solve() -> (i64, i64) {
-    let values: BTreeSet<i64> = Data::read(1)
-        .lines()
-        .map(|line| line.parse_bytes())
-        .collect();
+    let values: BTreeSet<i64> = Data::read(1).lines().parsed().collect();
 
     // Part 1
     let (smaller_term, larger_term) = find_pair(&values, 0, TARGET).unwrap();

@@ -1,4 +1,5 @@
-use crate::data::{Data, ParseBytes};
+use crate::data::Data;
+use crate::iter_utils::IterUtils;
 use itertools::Itertools;
 
 pub fn solve() -> (i64, i64) {
@@ -6,7 +7,7 @@ pub fn solve() -> (i64, i64) {
     let mut highest_adapter = i32::MIN;
     let mut adapters: Vec<i32> = Data::read(10)
         .lines()
-        .map(|line| line.parse_bytes())
+        .parsed()
         .inspect(|&value| highest_adapter = highest_adapter.max(value))
         .collect_vec();
 

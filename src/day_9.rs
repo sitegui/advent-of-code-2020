@@ -1,15 +1,13 @@
 #![allow(clippy::comparison_chain)]
 
-use crate::data::{Data, ParseBytes};
+use crate::data::Data;
+use crate::iter_utils::IterUtils;
 use itertools::Itertools;
 
 const PREAMBLE: usize = 25;
 
 pub fn solve() -> (i64, i64) {
-    let data: Vec<i64> = Data::read(9)
-        .lines()
-        .map(|line| line.parse_bytes())
-        .collect();
+    let data: Vec<i64> = Data::read(9).lines().parsed().collect();
 
     let mut part_1 = None;
     for (index, &value) in data.iter().enumerate().skip(PREAMBLE) {

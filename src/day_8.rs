@@ -1,4 +1,5 @@
 use crate::data::{Data, ParseBytes, TryFromBytes};
+use crate::iter_utils::IterUtils;
 use crate::parser::Parser;
 use std::collections::BTreeSet;
 
@@ -30,7 +31,7 @@ enum ExecutionResult {
 pub fn solve() -> (i64, i64) {
     let data = Data::read(8);
 
-    let program: Vec<Instruction> = data.lines().map(|line| line.parse_bytes()).collect();
+    let program: Vec<Instruction> = data.lines().parsed().collect();
 
     // Run the program until it loops, in order to answer part 1
     // At the same time, collect all the "fixable" instructions in the cycle
