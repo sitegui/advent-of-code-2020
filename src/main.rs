@@ -4,8 +4,8 @@ use std::env::args;
 use std::time::Instant;
 
 mod data;
-mod parser;
 mod iter_utils;
+mod parser;
 
 struct Day {
     label: &'static str,
@@ -54,6 +54,7 @@ days! {
     day_10 = (1980, 4628074479616),
     day_11 = (2183, 1990),
     day_12 = (1294, 20592),
+    day_13 = (174, 780601154795940),
 }
 
 fn main() {
