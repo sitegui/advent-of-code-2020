@@ -54,6 +54,19 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn consume_prefix(&mut self, prefix: &[u8]) {
+        self.try_consume_prefix(prefix).unwrap()
+    }
+
+    pub fn try_consume_prefix(&mut self, prefix: &[u8]) -> Option<()> {
+        if self.starts_with(prefix) {
+            self.consume_bytes(prefix.len());
+            Some(())
+        } else {
+            None
+        }
+    }
+
     pub fn into_inner(self) -> &'a [u8] {
         self.0
     }

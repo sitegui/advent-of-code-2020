@@ -19,7 +19,7 @@ struct Day {
 
 #[derive(Clone)]
 struct BenchResult {
-    label: &'static str,
+    label: String,
     samples: Vec<Duration>,
     mean: Duration,
     std: Duration,
@@ -52,7 +52,7 @@ impl Day {
 }
 
 impl BenchResult {
-    fn from_samples(label: &'static str, samples: Vec<Duration>) -> Self {
+    fn from_samples(label: impl Into<String>, samples: Vec<Duration>) -> Self {
         let mean = samples.iter().sum::<Duration>() / samples.len() as u32;
         let std = (samples
             .iter()
@@ -62,7 +62,7 @@ impl BenchResult {
             .sqrt();
 
         BenchResult {
-            label,
+            label: label.into(),
             samples,
             mean,
             std: Duration::from_secs_f64(std),
@@ -98,6 +98,7 @@ days! {
     day_11 = (2183, 1990),
     day_12 = (1294, 20592),
     day_13 = (174, 780601154795940),
+    day_14 = (10035335144067, 3817372618036),
 }
 
 fn main() {
@@ -116,7 +117,7 @@ fn main() {
                 .map(|i| results.iter().map(|result| result.samples[i]).sum())
                 .collect();
 
-            let overall = BenchResult::from_samples("overall", combined);
+            let overall = BenchResult::from_samples(format!("{} days", DAYS.len()), combined);
             println!("{}", overall);
         }
         Some(day) => {
@@ -138,7 +139,7 @@ impl fmt::Display for BenchResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} in {:.2} ± {:.2} ms",
+            "{:<7} in {:.3} ± {:.3} ms",
             self.label,
             self.mean.as_secs_f64() * 1e3,
             self.std.as_secs_f64() * 1e3
