@@ -59,7 +59,7 @@ impl<'a> Iterator for Split<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.parser.try_consume_until(self.separator).or_else(|| {
-            let rest = self.parser.into_inner();
+            let rest = self.parser.consume_bytes(self.parser.len());
             let ignore_empty = self.ignore_last_empty;
             self.ignore_last_empty = true;
             if rest.is_empty() && ignore_empty {
