@@ -1,6 +1,5 @@
 use crate::data::{Data, TryFromBytes};
 use crate::iter_utils::IterUtils;
-use crate::parser::Parser;
 use itertools::Itertools;
 
 struct BoardingPass {

@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-use std::mem;
-
 #[derive(Debug, Clone, Copy)]
 pub struct Split<'a> {
     parser: &'a [u8],
