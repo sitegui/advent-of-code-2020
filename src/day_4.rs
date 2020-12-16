@@ -41,18 +41,17 @@ pub fn solve() -> (i64, i64) {
         *passport = Passport::default();
     };
 
-    for line in Data::read(4).lines() {
+    for mut line in Data::read(4).lines() {
         if line.is_empty() {
             check_validity(&mut passport);
             continue;
         }
 
-        let mut parser = Parser::new(&line);
         loop {
-            let field = parser.consume_until(b':');
-            match parser.try_consume_until(b' ') {
+            let field = line.consume_until(b':');
+            match line.try_consume_until(b' ') {
                 None => {
-                    passport.update(field, parser.into_inner());
+                    passport.update(field, line);
                     break;
                 }
                 Some(value) => {

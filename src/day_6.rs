@@ -1,4 +1,5 @@
 use crate::data::Data;
+use crate::parser::Parser;
 
 #[derive(Debug, Default)]
 struct GroupForm {
@@ -18,7 +19,7 @@ pub fn solve() -> (i64, i64) {
     let mut total_tally = QuestionsTally::default();
     for paragraph in data.paragraphs() {
         let mut form = GroupForm::default();
-        for line in paragraph {
+        for line in paragraph.lines() {
             form.begin_person();
             for &question in line {
                 form.answer_yes(question);

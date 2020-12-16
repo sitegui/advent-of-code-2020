@@ -42,7 +42,7 @@ pub fn solve() -> (i64, i64) {
 }
 
 impl TryFromBytes for BoardingPass {
-    fn try_from_bytes(bytes: Parser) -> Option<Self> {
+    fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() != 10 {
             return None;
         }

@@ -22,8 +22,7 @@ pub fn solve() -> (i64, i64) {
 
     let mut mask = Mask::default();
 
-    for line in Data::read(14).lines() {
-        let mut line = Parser::new(line);
+    for mut line in Data::read(14).lines() {
         match line.try_consume_prefix(b"mask = ") {
             Some(_) => {
                 // Read new mask
@@ -100,7 +99,7 @@ fn get_bit(value: i64, bit: usize) -> i64 {
 }
 
 impl TryFromBytes for Mask {
-    fn try_from_bytes(bytes: Parser<'_>) -> Option<Self> {
+    fn try_from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() != 36 {
             return None;
         }
@@ -122,7 +121,7 @@ impl TryFromBytes for Mask {
 }
 
 impl TryFromBytes for Command {
-    fn try_from_bytes(mut bytes: Parser<'_>) -> Option<Self> {
+    fn try_from_bytes(mut bytes: &[u8]) -> Option<Self> {
         bytes.try_consume_prefix(b"mem[")?;
         let address = bytes.consume_until(b']').try_parse_bytes()?;
         bytes.try_consume_prefix(b" = ")?;

@@ -40,7 +40,7 @@ pub fn solve() -> (i64, i64) {
 }
 
 impl TryFromBytes for Command {
-    fn try_from_bytes(mut bytes: Parser) -> Option<Self> {
+    fn try_from_bytes(mut bytes: &[u8]) -> Option<Self> {
         let op = bytes.consume_byte();
         let num: i16 = bytes.parse_bytes();
         let result = match op {

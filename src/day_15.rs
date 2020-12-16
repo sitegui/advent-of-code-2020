@@ -1,5 +1,6 @@
 use crate::data::Data;
 use crate::iter_utils::IterUtils;
+use crate::parser::Parser;
 use itertools::Itertools;
 use std::mem;
 use std::ops::Range;
@@ -16,7 +17,11 @@ struct Memory {
 
 pub fn solve() -> (i64, i64) {
     let data = Data::read(15);
-    let starting = data.split(b',', true).parsed::<i32>().collect_vec();
+    let starting = data
+        .bytes()
+        .split_byte(b',', true)
+        .parsed::<i32>()
+        .collect_vec();
 
     let mut memory = Memory::new();
 

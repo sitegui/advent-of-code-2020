@@ -51,30 +51,28 @@ pub fn solve() -> (i64, i64) {
     let mut rules = Rules::default();
 
     // Parse the rules
-    for line in data.lines() {
-        let mut parser = Parser::new(line);
-        let outside_color = parser.consume_words(2);
-        assert_eq!(parser.consume_words(2), b"bags contain");
+    for mut line in data.lines() {
+        let outside_color = line.consume_words(2);
+        assert_eq!(line.consume_words(2), b"bags contain");
 
-        while let Some(contained) = parser.try_consume_words(4) {
-            let mut sub_parser = Parser::new(contained);
-            let num: u8 = sub_parser.consume_words(1).parse_bytes();
-            let inside_color = sub_parser.consume_words(2);
+        while let Some(mut contained) = line.try_consume_words(4) {
+            let num: u8 = contained.consume_words(1).parse_bytes();
+            let inside_color = contained.consume_words(2);
             assert!(matches!(
-                sub_parser.consume_words(1),
+                contained.consume_words(1),
                 b"bags," | b"bags." | b"bag," | b"bag."
             ));
-            assert!(sub_parser.is_empty());
+            assert!(contained.is_empty());
 
             rules.insert_rule(outside_color, num, inside_color);
         }
 
         assert!(matches!(
-            parser.try_consume_words(3),
+            line.try_consume_words(3),
             None | Some(b"no other bags.")
         ));
 
-        assert!(parser.is_empty());
+        assert!(line.is_empty());
     }
 
     // Detect the possible outside colors

@@ -100,7 +100,7 @@ fn run_program<F: FnMut(Instruction, State)>(
 }
 
 impl TryFromBytes for Instruction {
-    fn try_from_bytes(mut bytes: Parser) -> Option<Self> {
+    fn try_from_bytes(mut bytes: &[u8]) -> Option<Self> {
         let operation = bytes.try_consume_words(1)?;
         let amount: i16 = bytes.try_parse_bytes()?;
         match operation {
