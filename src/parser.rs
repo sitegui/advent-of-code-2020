@@ -16,6 +16,7 @@ pub struct SplitBytes<'a> {
 
 pub trait Parser<'a> {
     fn consume_byte(&mut self) -> u8;
+    fn try_consume_byte(&mut self) -> Option<u8>;
     fn consume_bytes(&mut self, n: usize) -> &'a [u8];
     fn consume_until(&mut self, target_byte: u8) -> &'a [u8];
     fn try_consume_until(&mut self, target_byte: u8) -> Option<&'a [u8]>;
@@ -35,6 +36,13 @@ impl<'a> Parser<'a> for &'a [u8] {
         let result = self[0];
         *self = &self[1..];
         result
+    }
+
+    fn try_consume_byte(&mut self) -> Option<u8> {
+        self.get(0).map(|&result| {
+            *self = &self[1..];
+            result
+        })
     }
 
     fn consume_bytes(&mut self, n: usize) -> &'a [u8] {
