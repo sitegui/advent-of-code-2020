@@ -169,13 +169,19 @@ impl<'a> Iterator for SplitBytes<'a> {
     }
 }
 
+impl<'a> Split<'a> {
+    pub fn into_inner(self) -> &'a [u8] {
+        self.parser
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn consume_until() {
-        let mut parser = Parser::new(b"ba be bi bo bu");
+        let mut parser: &[u8] = b"ba be bi bo bu";
 
         assert_eq!(parser.consume_bytes(3), b"ba ");
         assert_eq!(parser.consume_until(b' '), b"be");
@@ -184,7 +190,7 @@ mod tests {
 
     #[test]
     fn consume_words() {
-        let mut parser = Parser::new(b"ba be bi bo bu");
+        let mut parser: &[u8] = b"ba be bi bo bu";
 
         assert_eq!(parser.consume_words(1), b"ba");
         assert_eq!(parser.consume_words(2), b"be bi");
@@ -192,7 +198,7 @@ mod tests {
         assert_eq!(parser.try_consume_words(1), None);
         assert_eq!(parser.try_consume_words(2), None);
 
-        let mut parser = Parser::new(b"ba be bi bo bu");
+        let mut parser: &[u8] = b"ba be bi bo bu";
         assert_eq!(parser.consume_words(5), b"ba be bi bo bu");
     }
 }

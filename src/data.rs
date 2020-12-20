@@ -72,7 +72,7 @@ mod tests {
 
         let lines = data
             .paragraphs()
-            .map(|p| p.lines().map(|l| l.into_inner()).collect_vec())
+            .map(|p| p.lines().collect_vec())
             .collect_vec();
 
         assert_eq!(

@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 mod data;
 mod iter_utils;
+mod matrix;
 mod parser;
 
 const NUM_WARMING: usize = 10;
@@ -104,6 +105,7 @@ days! {
     day_17 = (368, 2696),
     day_18 = (800602729153, 92173009047076),
     day_19 = (226, 355),
+    day_20 = (28057939502729, 2489),
 }
 
 fn main() {
