@@ -10,7 +10,7 @@ const NUM_CUPS_P2: u32 = 1_000_000;
 const NUM_MOVES_P1: usize = 100;
 const NUM_MOVES_P2: usize = 10_000_000;
 const ROPE_NODE_LEN: usize = 1_000;
-const LOG_EVERY: usize = 10_000;
+const LOG_EVERY: usize = 100_000;
 
 #[derive(Debug)]
 struct Cups {
@@ -70,7 +70,14 @@ pub fn solve() -> (i64, i64) {
         }
         cups_p2.apply_move(i % LOG_EVERY == 0);
     }
-    let part_2 = 0;
+    let after_1 = cups_p2
+        .cups
+        .iter()
+        .skip_while(|&cup| cup != 1)
+        .skip(1)
+        .take(2)
+        .collect_vec();
+    let part_2 = after_1[0] as i64 * after_1[1] as i64;
 
     (part_1, part_2)
 }
