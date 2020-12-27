@@ -1,18 +1,11 @@
 use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::mem::MaybeUninit;
-use std::{fmt, mem, slice};
-
-/// The number of children of each node.
-/// Must be of the form `2 * N` with `N >= 1`
-const SIZE: usize = 256;
-type Child<T> = Option<Box<Node<T>>>;
-type Children<T> = [Child<T>; SIZE];
+use std::{fmt, slice};
 
 #[derive(Debug)]
 pub struct DenseLine<T> {
-    pub root: Node<T>,
+    root: Node<T>,
 }
 
 #[derive(Debug)]
@@ -25,8 +18,8 @@ pub struct Coordinates(Vec<usize>);
 
 #[derive(Debug)]
 pub struct Get1Remove3<T> {
-    gotten: T,
-    removed: [T; 3],
+    gotten: Option<T>,
+    removed: [Option<T>; 3],
     num_removed: usize,
 }
 
@@ -37,19 +30,20 @@ pub struct Insert3<T> {
     new_coordinates: [Coordinates; 3],
 }
 
-pub struct Node<T> {
-    pub value: Option<T>,
-    pub children: Children<T>,
+struct Node<T> {
+    value: Option<T>,
+    used_head: bool,
+    children: Vec<Node<T>>,
 }
 
 #[derive(Debug)]
 struct IterStackState<'a, T> {
     next_coordinate: usize,
-    remaining_children: slice::Iter<'a, Child<T>>,
+    remaining_children: slice::Iter<'a, Node<T>>,
 }
 
-impl<T: Copy + Default + Debug> DenseLine<T> {
-    pub fn new(values: &[T]) -> Self {
+impl<T: Copy + Debug> DenseLine<T> {
+    pub fn new(values: impl IntoIterator<Item = T>) -> Self {
         DenseLine {
             root: Node::with_values(values),
         }
@@ -62,7 +56,7 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
     pub fn get_1_and_remove_3(&mut self, start: &Coordinates) -> Get1Remove3<T> {
         let coordinates = &start.0;
 
-        fn get_1_and_remove_3<T: Copy + Default + Debug>(
+        fn get_1_and_remove_3<T: Copy + Debug>(
             node: &mut Node<T>,
             coordinates: &[usize],
             result: &mut Get1Remove3<T>,
@@ -70,11 +64,11 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
             let (&coordinate, sub_coordinates) = coordinates.split_first().unwrap();
 
             if sub_coordinates.is_empty() {
-                let child = node.children[coordinate as usize].as_mut().unwrap();
-                result.gotten = child.value.unwrap();
+                let child = &mut node.children[coordinate as usize];
+                result.gotten = Some(child.value.unwrap());
                 remove_3(&mut child.children, result);
             } else {
-                let child = node.children[coordinate as usize].as_mut().unwrap();
+                let child = &mut node.children[coordinate as usize];
                 get_1_and_remove_3(child, sub_coordinates, result);
             }
 
@@ -84,23 +78,18 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
             }
         }
 
-        fn remove_3<T: Copy + Default>(nodes: &mut [Child<T>], result: &mut Get1Remove3<T>) {
-            for (i, node) in nodes.iter_mut().enumerate() {
-                if let Some(node) = node {
-                    if let Some(value) = node.value.take() {
-                        result.push_removed(value);
-                        if result.is_full() {
-                            return;
-                        }
-                    }
-
-                    remove_3(&mut node.children, result);
+        fn remove_3<T: Copy>(nodes: &mut [Node<T>], result: &mut Get1Remove3<T>) {
+            for node in nodes {
+                if let Some(value) = node.value.take() {
+                    result.push_removed(value);
                     if result.is_full() {
                         return;
                     }
-                } else if i > 0 {
-                    // Children (except the head) are filled from left to right
-                    break;
+                }
+
+                remove_3(&mut node.children, result);
+                if result.is_full() {
+                    return;
                 }
             }
         }
@@ -123,14 +112,14 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
             if sub_coordinates.is_empty() {
                 insert_after(&mut node.children, coordinate, values);
             } else {
-                let child = node.children[coordinate as usize].as_mut().unwrap();
+                let child = &mut node.children[coordinate as usize];
                 navigate(child, sub_coordinates, values);
             }
         }
 
         /// Start the insertion after the node `nodes[coordinate]`.
         fn insert_after<T: Copy>(
-            nodes: &mut Children<T>,
+            nodes: &mut Vec<Node<T>>,
             coordinate: usize,
             values: &mut Insert3<T>,
         ) {
@@ -141,54 +130,50 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
             // Pick exclusive references to the target node and its right sibling (if any)
             let (node, maybe_sibling) = {
                 let (before, after) = nodes.split_at_mut(coordinate + 1);
-                (
-                    before.last_mut().unwrap().as_mut().unwrap(),
-                    after.first_mut(),
-                )
+                (before.last_mut().unwrap(), after.first_mut())
             };
 
-            #[allow(clippy::if_same_then_else)]
-            if node.children[0].is_some() {
+            if node.is_leaf() {
+                match maybe_sibling {
+                    None => {
+                        // Free space at right => insert new node
+                        values.pop_coordinate();
+                        let new_coordinate = nodes.len();
+                        let value = values.pop(new_coordinate);
+                        nodes.push(Node::with_value(value));
+                        insert_after(nodes, new_coordinate, values);
+                    }
+                    Some(sibling) => {
+                        if sibling.value.is_none() {
+                            // Hollow sibling => insert at it
+                            values.pop_coordinate();
+                            sibling.value = Some(values.pop(coordinate + 1));
+                            insert_after(nodes, coordinate + 1, values);
+                        } else {
+                            // Full sibling => create a neck
+                            node.children.push(Node::new());
+                            node.children.push(Node::with_value(values.pop(1)));
+                            insert_after(&mut node.children, 1, values);
+                        }
+                    }
+                }
+            } else if node.used_head {
                 // Follow down the head
                 values.push_coordinate(0);
                 insert_after(&mut node.children, 0, values);
-            } else if let Some(neck) = &mut node.children[1] {
+            } else {
+                let neck = &mut node.children[1];
                 if neck.value.is_some() {
-                    // Has a full neck => create a head and follow it
-                    node.children[0] = Some(Box::new(Node::new()));
+                    // Has a full neck => follow down the head
+                    node.used_head = true;
                     values.push_coordinate(0);
                     insert_after(&mut node.children, 0, values);
                 } else {
                     // Has a hollow neck => insert in it
-                    insert_at_neck(node, values);
+                    neck.value = Some(values.pop(1));
+                    insert_after(&mut node.children, 1, values);
                 }
-            } else if node.children[2].is_some() {
-                // Non leaf node => create a neck
-                unreachable!("TODO: remove this arm")
-            } else if maybe_sibling.is_none() {
-                // Leaf node and no space to insert at right => create a neck
-                insert_at_neck(node, values);
-            } else if let Some(sibling) = maybe_sibling {
-                let sibling = sibling.get_or_insert_with(|| Box::new(Node::new()));
-                if sibling.value.is_none() {
-                    // Hollow sibling => insert at it
-                    values.pop_coordinate();
-                    sibling.value = Some(values.pop(coordinate + 1));
-                    insert_after(nodes, coordinate + 1, values);
-                } else {
-                    // Full sibling => create a neck
-                    insert_at_neck(node, values);
-                }
-            } else {
-                unreachable!()
             }
-        }
-
-        fn insert_at_neck<T: Copy>(node: &mut Node<T>, values: &mut Insert3<T>) {
-            let neck = node.children[1].get_or_insert_with(|| Box::new(Node::new()));
-            debug_assert!(neck.value.is_none());
-            neck.value = Some(values.pop(1));
-            insert_after(&mut node.children, 1, values);
         }
 
         values.set_base_coordinates(after);
@@ -198,18 +183,16 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
     }
 
     pub fn next(&self, base: &mut Coordinates) -> T {
-        fn find_next<T: Copy + Default + Debug>(
-            nodes: &[Child<T>],
+        fn find_next<T: Copy + Debug>(
+            nodes: &[Node<T>],
             coordinates: &mut Vec<usize>,
             level: usize,
         ) -> Option<T> {
             match coordinates.get(level) {
                 Some(&coordinate) => {
-                    if let Some(value) = find_next(
-                        &nodes[coordinate as usize].as_ref().unwrap().children,
-                        coordinates,
-                        level + 1,
-                    ) {
+                    if let Some(value) =
+                        find_next(&nodes[coordinate as usize].children, coordinates, level + 1)
+                    {
                         return Some(value);
                     }
 
@@ -225,27 +208,22 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
             }
         }
 
-        fn find_first<T: Copy + Default + Debug>(
-            nodes: &[Child<T>],
+        fn find_first<T: Copy + Debug>(
+            nodes: &[Node<T>],
             coordinates: &mut Vec<usize>,
             level: usize,
             coordinate_offset: usize,
         ) -> Option<T> {
             coordinates.push(0);
             for (i, child) in nodes.iter().enumerate() {
-                if let Some(child) = child {
-                    if let Some(value) = child.value {
-                        coordinates[level] = coordinate_offset + i;
-                        return Some(value);
-                    }
+                if let Some(value) = child.value {
+                    coordinates[level] = coordinate_offset + i;
+                    return Some(value);
+                }
 
-                    if let Some(value) = find_first(&child.children, coordinates, level + 1, 0) {
-                        coordinates[level] = coordinate_offset + i;
-                        return Some(value);
-                    }
-                } else if i > 0 {
-                    // Children (except the head) are filled from left to right
-                    break;
+                if let Some(value) = find_first(&child.children, coordinates, level + 1, 0) {
+                    coordinates[level] = coordinate_offset + i;
+                    return Some(value);
                 }
             }
             coordinates.pop();
@@ -263,40 +241,33 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
     pub fn get(&self, coordinates: &Coordinates) -> T {
         let mut node = &self.root;
         for &coordinate in &coordinates.0 {
-            node = node.children[coordinate].as_ref().unwrap();
+            node = &node.children[coordinate];
         }
         node.value.unwrap()
+    }
+
+    pub fn print_stats(&self) {
+        let mut dist: BTreeMap<_, usize> = BTreeMap::new();
+
+        for child in &self.root.children {
+            *dist.entry(child.children.len()).or_default() += 1;
+        }
+
+        println!(
+            "root_len={}, fragmentation={}, child_lens={:?}",
+            self.root.children.len(),
+            self.root.fragmentation(),
+            dist
+        );
     }
 }
 
 impl<T: Copy> Node<T> {
-    pub fn iter_children(&self) -> Iter<'_, T> {
-        Iter::new(&self)
-    }
-
     fn new() -> Self {
-        // Create an uninitialized array of `MaybeUninit`. The `assume_init` is
-        // safe because the type we are claiming to have initialized here is a
-        // bunch of `MaybeUninit`s, which do not require initialization.
-        let mut data: [MaybeUninit<Child<T>>; SIZE] =
-            unsafe { MaybeUninit::uninit().assume_init() };
-
-        // Dropping a `MaybeUninit` does nothing. Thus using raw pointer
-        // assignment instead of `ptr::write` does not cause the old
-        // uninitialized value to be dropped. Also if there is a panic during
-        // this loop, we have a memory leak, but there is no memory safety
-        // issue.
-        for elem in &mut data[..] {
-            *elem = MaybeUninit::new(None);
-        }
-
-        // Everything is initialized. Transmute the array to the
-        // initialized type.
-        let children = unsafe { mem::transmute_copy::<_, [Child<T>; SIZE]>(&data) };
-
         Node {
             value: None,
-            children,
+            used_head: false,
+            children: vec![],
         }
     }
 
@@ -306,30 +277,32 @@ impl<T: Copy> Node<T> {
         node
     }
 
-    fn with_values(values: &[T]) -> Self {
+    fn with_values(values: impl IntoIterator<Item = T>) -> Self {
         let mut node = Node::new();
 
-        if values.len() < SIZE {
-            // Can fit in a single node
-            for (i, &value) in values.iter().enumerate() {
-                node.children[i + 1] = Some(Box::new(Node::with_value(value)));
-            }
-        } else {
-            // Recursively split the values
-            let chunk_size = values.len() / SIZE + 1;
-            for (i, chunk) in values.chunks(chunk_size).enumerate() {
-                if i == 0 {
-                    node.children[i] = Some(Box::new(Node::with_values(chunk)));
-                } else {
-                    let (&first, tail) = chunk.split_first().unwrap();
-                    let mut child = Node::with_values(tail);
-                    child.value = Some(first);
-                    node.children[i] = Some(Box::new(child));
-                }
-            }
-        }
+        // Add empty head
+        node.children.push(Node::new());
+        node.children
+            .extend(values.into_iter().map(Node::with_value));
 
         node
+    }
+
+    fn is_leaf(&self) -> bool {
+        self.children.is_empty()
+    }
+
+    fn fragmentation(&self) -> f32 {
+        if self.children.is_empty() {
+            0.
+        } else {
+            self.children
+                .iter()
+                .enumerate()
+                .filter(|&(i, child)| i > 0 && child.children.is_empty() && child.value.is_none())
+                .count() as f32
+                / self.children.len() as f32
+        }
     }
 }
 
@@ -350,20 +323,13 @@ impl<'a, T: Copy> IterStackState<'a, T> {
     }
 
     fn next_node(&mut self) -> Option<&'a Node<T>> {
-        loop {
-            match self.remaining_children.next() {
-                None => return None,
-                Some(maybe_node) => {
-                    self.next_coordinate += 1;
-                    match maybe_node {
-                        // Children (except the head) are filled from left to right
-                        None if self.next_coordinate > 1 => return None,
-                        None => {}
-                        Some(node) => return Some(node),
-                    }
-                }
-            }
+        let result = self.remaining_children.next();
+
+        if result.is_some() {
+            self.next_coordinate += 1;
         }
+
+        result
     }
 }
 
@@ -397,17 +363,17 @@ impl<'a, T: Copy> Iterator for Iter<'a, T> {
     }
 }
 
-impl<T: Copy + Default> Get1Remove3<T> {
+impl<T: Copy> Get1Remove3<T> {
     fn new() -> Self {
         Get1Remove3 {
-            gotten: T::default(),
-            removed: [T::default(); 3],
+            gotten: None,
+            removed: [None; 3],
             num_removed: 0,
         }
     }
 
     fn push_removed(&mut self, value: T) {
-        self.removed[self.num_removed] = value;
+        self.removed[self.num_removed] = Some(value);
         self.num_removed += 1;
     }
 
@@ -416,11 +382,15 @@ impl<T: Copy + Default> Get1Remove3<T> {
     }
 
     pub fn gotten(&self) -> T {
-        self.gotten
+        self.gotten.unwrap()
     }
 
     pub fn removed(&self) -> [T; 3] {
-        self.removed
+        [
+            self.removed[0].unwrap(),
+            self.removed[1].unwrap(),
+            self.removed[2].unwrap(),
+        ]
     }
 }
 
@@ -476,12 +446,7 @@ impl Coordinates {
 
 impl<T: Debug> fmt::Debug for Node<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let children: BTreeMap<_, _> = self
-            .children
-            .iter()
-            .enumerate()
-            .filter_map(|(i, child)| child.as_ref().map(|child| (i, child.as_ref())))
-            .collect();
+        let children: BTreeMap<_, _> = self.children.iter().enumerate().collect();
 
         match (&self.value, children.is_empty()) {
             (None, true) => write!(f, "_"),
@@ -493,44 +458,5 @@ impl<T: Debug> fmt::Debug for Node<T> {
                 .field("children", &children)
                 .finish(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use itertools::Itertools;
-    use std::collections::BTreeMap;
-
-    #[test]
-    fn test() {
-        let mut values = vec![];
-        for i in 0..(SIZE * (SIZE - 1)) {
-            values.push(i);
-        }
-
-        let mut line = DenseLine::new(&values);
-        println!("{:?}", line.iter().format("\n"));
-        assert_eq!(line.iter().map(|(_, value)| value).collect_vec(), values);
-
-        let mut coordinates_by_value: BTreeMap<_, _> = line.iter().map(|(c, v)| (v, c)).collect();
-        let result = line.get_1_and_remove_3(coordinates_by_value.get(&SIZE).unwrap());
-        assert_eq!(result.gotten(), SIZE);
-        assert_eq!(result.removed(), [SIZE + 1, SIZE + 2, SIZE + 3]);
-
-        let c0 = coordinates_by_value.remove(&result.removed()[0]).unwrap();
-        let c1 = coordinates_by_value.remove(&result.removed()[1]).unwrap();
-        let c2 = coordinates_by_value.remove(&result.removed()[2]).unwrap();
-        let insert3 = Insert3::new(result.removed(), [c0, c1, c2]);
-        let insert3 = line.insert_3(coordinates_by_value.get(&(SIZE / 2)).unwrap(), insert3);
-        let new_coordinates = insert3.into_new_coordinates();
-        eprintln!("new_coordinates = {:?}", new_coordinates);
-        println!("{:?}", line.iter().format("\n"));
-
-        let target = SIZE * (SIZE - 1) - 2;
-        let coordinates = line.iter().find(|&(_, value)| value == target).unwrap().0;
-        let result = line.get_1_and_remove_3(&coordinates);
-        assert_eq!(result.gotten(), target);
-        assert_eq!(result.removed(), [target + 1, 0, 1]);
     }
 }

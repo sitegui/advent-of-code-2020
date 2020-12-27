@@ -10,8 +10,8 @@ mod iter_utils;
 mod matrix;
 mod parser;
 
-const NUM_WARMING: usize = 10;
-const NUM_SAMPLES: usize = 10;
+const NUM_WARMING: usize = 2;
+const NUM_SAMPLES: usize = 5;
 
 struct Day {
     label: &'static str,
