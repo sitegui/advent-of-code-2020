@@ -8,8 +8,8 @@ pub fn solve() -> (i64, i64) {
     let card_public_key = lines[0];
     let door_public_key = lines[1];
 
-    let card_private_key = find_loop_size(card_public_key);
-    let encryption_key = transform(door_public_key, card_private_key);
+    let door_private_key = find_loop_size(door_public_key);
+    let encryption_key = transform(card_public_key, door_private_key);
 
     (encryption_key as i64, 0)
 }
