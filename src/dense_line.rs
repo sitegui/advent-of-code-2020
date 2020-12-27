@@ -6,13 +6,13 @@ use std::{fmt, mem, slice};
 
 /// The number of children of each node.
 /// Must be of the form `2 * N` with `N >= 1`
-const SIZE: usize = 16;
+const SIZE: usize = 1024;
 type Child<T> = Option<Box<Node<T>>>;
 type Children<T> = [Child<T>; SIZE];
 
 #[derive(Debug)]
 pub struct DenseLine<T> {
-    root: Node<T>,
+    pub root: Node<T>,
 }
 
 #[derive(Debug)]
@@ -37,9 +37,9 @@ pub struct Insert3<T> {
     new_coordinates: [Coordinates; 3],
 }
 
-struct Node<T> {
-    value: Option<T>,
-    children: Children<T>,
+pub struct Node<T> {
+    pub value: Option<T>,
+    pub children: Children<T>,
 }
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
     }
 
     pub fn iter(&self) -> Iter<'_, T> {
-        Iter::new(self)
+        Iter::new(&self.root)
     }
 
     pub fn get_1_and_remove_3(&mut self, start: &Coordinates) -> Get1Remove3<T> {
@@ -85,7 +85,7 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
         }
 
         fn remove_3<T: Copy + Default>(nodes: &mut [Child<T>], result: &mut Get1Remove3<T>) {
-            for node in nodes {
+            for (i, node) in nodes.iter_mut().enumerate() {
                 if let Some(node) = node {
                     if let Some(value) = node.value.take() {
                         result.push_removed(value);
@@ -98,6 +98,9 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
                     if result.is_full() {
                         return;
                     }
+                } else if i > 0 {
+                    // Children (except the head) are filled from left to right
+                    break;
                 }
             }
         }
@@ -135,87 +138,57 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
                 return;
             }
 
-            let (temp, right_siblings) = nodes.split_at_mut(coordinate + 1);
-            let node = temp.last_mut().unwrap().as_mut().unwrap();
+            // Pick exclusive references to the target node and its right sibling (if any)
+            let (node, maybe_sibling) = {
+                let (before, after) = nodes.split_at_mut(coordinate + 1);
+                (
+                    before.last_mut().unwrap().as_mut().unwrap(),
+                    after.first_mut(),
+                )
+            };
 
-            // If the target node has any child, then we must insert at least on that level
+            #[allow(clippy::if_same_then_else)]
             if node.children[0].is_some() {
-                // For a head child, recurse into it
+                // Follow down the head
                 values.push_coordinate(0);
                 insert_after(&mut node.children, 0, values);
-                return;
-            }
-            for (i, child) in node.children.iter_mut().enumerate().skip(1) {
-                if let Some(child) = child {
-                    // For a non-head child, insert in the middle of the "vacuum"
-                    let insert_coordinate = match child.value.is_some() {
-                        true => (i + 1) / 2,
-                        false => i / 2,
-                    };
-
-                    if insert_coordinate == 0 {
-                        values.push_coordinate(0);
-                        insert_after(&mut node.children, 0, values);
-                    } else {
-                        insert_at_node(&mut node.children, insert_coordinate, values);
-                    }
-                    return;
+            } else if let Some(neck) = &mut node.children[1] {
+                if neck.value.is_some() {
+                    // Has a full neck => create a head and follow it
+                    node.children[0] = Some(Box::new(Node::new()));
+                    values.push_coordinate(0);
+                    insert_after(&mut node.children, 0, values);
+                } else {
+                    // Has a hollow neck => insert in it
+                    insert_at_neck(node, values);
                 }
-            }
-
-            // Without children, measure the vacuum at its right
-            let vacuum_size = right_siblings
-                .iter()
-                .enumerate()
-                .find_map(|(i, child)| match child {
-                    None => None,
-                    Some(child) => Some(match child.value.is_some() {
-                        true => i,
-                        false => i + 1,
-                    }),
-                })
-                .unwrap_or(right_siblings.len());
-
-            match vacuum_size {
-                0 => inaugurate_new_level(node, values),
-                vacuum_size => {
+            } else if node.children[2].is_some() {
+                // Non leaf node => create a neck
+                unreachable!("TODO: remove this arm")
+            } else if maybe_sibling.is_none() {
+                // Leaf node and no space to insert at right => create a neck
+                insert_at_neck(node, values);
+            } else if let Some(sibling) = maybe_sibling {
+                let sibling = sibling.get_or_insert_with(|| Box::new(Node::new()));
+                if sibling.value.is_none() {
+                    // Hollow sibling => insert at it
                     values.pop_coordinate();
-                    insert_at_node(nodes, coordinate + 1 + vacuum_size / 2, values)
+                    sibling.value = Some(values.pop(coordinate + 1));
+                    insert_after(nodes, coordinate + 1, values);
+                } else {
+                    // Full sibling => create a neck
+                    insert_at_neck(node, values);
                 }
+            } else {
+                unreachable!()
             }
         }
 
-        /// Perform an actual insertion at `nodes[coordinate]` and then continue after it.
-        fn insert_at_node<T: Copy>(
-            nodes: &mut Children<T>,
-            coordinate: usize,
-            values: &mut Insert3<T>,
-        ) {
-            debug_assert_ne!(coordinate, 0);
-            let value = values.pop(coordinate);
-
-            match &mut nodes[coordinate] {
-                None => {
-                    nodes[coordinate] = Some(Box::new(Node::with_value(value)));
-                }
-                Some(node) => {
-                    debug_assert!(node.value.is_none());
-                    node.value = Some(value);
-                }
-            }
-
-            insert_after(nodes, coordinate, values);
-        }
-
-        /// Insert the fist value as the child of this node.
-        fn inaugurate_new_level<T: Copy>(node: &mut Node<T>, values: &mut Insert3<T>) {
-            let coordinate = node.children.len() / 2;
-            let value = values.pop(coordinate);
-
-            debug_assert!(node.children[coordinate].is_none());
-            node.children[coordinate] = Some(Box::new(Node::with_value(value)));
-
-            insert_after(&mut node.children, coordinate, values);
+        fn insert_at_neck<T: Copy>(node: &mut Node<T>, values: &mut Insert3<T>) {
+            let neck = node.children[1].get_or_insert_with(|| Box::new(Node::new()));
+            debug_assert!(neck.value.is_none());
+            neck.value = Some(values.pop(1));
+            insert_after(&mut node.children, 1, values);
         }
 
         values.set_base_coordinates(after);
@@ -270,6 +243,9 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
                         coordinates[level] = coordinate_offset + i;
                         return Some(value);
                     }
+                } else if i > 0 {
+                    // Children (except the head) are filled from left to right
+                    break;
                 }
             }
             coordinates.pop();
@@ -286,6 +262,10 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
 }
 
 impl<T: Copy> Node<T> {
+    pub fn iter_children(&self) -> Iter<'_, T> {
+        Iter::new(&self)
+    }
+
     fn new() -> Self {
         // Create an uninitialized array of `MaybeUninit`. The `assume_init` is
         // safe because the type we are claiming to have initialized here is a
@@ -346,10 +326,9 @@ impl<T: Copy> Node<T> {
 }
 
 impl<'a, T: Copy> Iter<'a, T> {
-    fn new(dense_line: &'a DenseLine<T>) -> Self {
-        debug_assert!(dense_line.root.value.is_none());
+    fn new(root: &'a Node<T>) -> Self {
         Iter {
-            stack: vec![IterStackState::new(&dense_line.root)],
+            stack: vec![IterStackState::new(&root)],
         }
     }
 }
@@ -369,6 +348,8 @@ impl<'a, T: Copy> IterStackState<'a, T> {
                 Some(maybe_node) => {
                     self.next_coordinate += 1;
                     match maybe_node {
+                        // Children (except the head) are filled from left to right
+                        None if self.next_coordinate > 1 => return None,
                         None => {}
                         Some(node) => return Some(node),
                     }

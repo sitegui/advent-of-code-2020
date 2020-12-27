@@ -1,13 +1,14 @@
 use crate::data::Data;
 use crate::dense_line::{Coordinates, DenseLine, Insert3};
-use itertools::Itertools;
+use std::thread::sleep;
+use std::time::Duration;
 
 type Cup = u32;
 const NUM_CUPS_P1: u32 = 9;
 const NUM_CUPS_P2: u32 = 1_000_000;
-const NUM_MOVES_P1: usize = 10;
+const NUM_MOVES_P1: usize = 100;
 const NUM_MOVES_P2: usize = 10_000_000;
-const LOG_EVERY: usize = 1;
+const LOG_EVERY: usize = 1_000;
 
 #[derive(Debug)]
 struct Cups {
@@ -32,7 +33,7 @@ pub fn solve() -> (i64, i64) {
     let mut cups_p2 = Cups::new(&base_cups, NUM_CUPS_P2);
 
     for _ in 0..NUM_MOVES_P1 {
-        println!("{:#?}", cups_p1.cups);
+        // println!("{:#?}", cups_p1.cups);
         cups_p1.apply_move(true);
     }
     let part_1 = cups_p1.labels();
@@ -40,8 +41,26 @@ pub fn solve() -> (i64, i64) {
     for i in 0..NUM_MOVES_P2 {
         if i % LOG_EVERY == 0 {
             println!("Move {}", i);
+
+            for (i, child) in cups_p2.cups.root.children.iter().enumerate() {
+                if let Some(child) = child {
+                    let n = child.iter_children().count();
+                    if n > 0 {
+                        println!("Child {}: {} children", i, n);
+                    }
+                }
+            }
         }
         cups_p2.apply_move(i % LOG_EVERY == 0);
+        // sleep(Duration::from_secs_f64(0.1));
+
+        // if i == 40 {
+        //     let mut node = &cups_p2.cups.root;
+        //     for &c in &[15, 15, 15, 15, 8, 15] {
+        //         node = node.children[c].as_ref().unwrap();
+        //     }
+        //     println!("{:#?}", node);
+        // }
     }
     let mut pos_1 = cups_p2.find(1).clone();
     let after_1 = cups_p2.cups.next(&mut pos_1);
