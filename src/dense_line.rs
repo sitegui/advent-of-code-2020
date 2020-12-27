@@ -6,7 +6,7 @@ use std::{fmt, mem, slice};
 
 /// The number of children of each node.
 /// Must be of the form `2 * N` with `N >= 1`
-const SIZE: usize = 1024;
+const SIZE: usize = 256;
 type Child<T> = Option<Box<Node<T>>>;
 type Children<T> = [Child<T>; SIZE];
 
@@ -259,6 +259,14 @@ impl<T: Copy + Default + Debug> DenseLine<T> {
             })
             .unwrap()
     }
+
+    pub fn get(&self, coordinates: &Coordinates) -> T {
+        let mut node = &self.root;
+        for &coordinate in &coordinates.0 {
+            node = node.children[coordinate].as_ref().unwrap();
+        }
+        node.value.unwrap()
+    }
 }
 
 impl<T: Copy> Node<T> {
@@ -457,6 +465,12 @@ impl<T: Copy> Insert3<T> {
 
     fn is_empty(&self) -> bool {
         self.num_inserted == self.values.len()
+    }
+}
+
+impl Coordinates {
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 

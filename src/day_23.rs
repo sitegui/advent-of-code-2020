@@ -1,14 +1,13 @@
 use crate::data::Data;
 use crate::dense_line::{Coordinates, DenseLine, Insert3};
-use std::thread::sleep;
-use std::time::Duration;
+use itertools::Itertools;
 
 type Cup = u32;
 const NUM_CUPS_P1: u32 = 9;
 const NUM_CUPS_P2: u32 = 1_000_000;
 const NUM_MOVES_P1: usize = 100;
 const NUM_MOVES_P2: usize = 10_000_000;
-const LOG_EVERY: usize = 1_000;
+const LOG_EVERY: usize = 500_000;
 
 #[derive(Debug)]
 struct Cups {
@@ -19,7 +18,7 @@ struct Cups {
 }
 
 pub fn solve() -> (i64, i64) {
-    let data = Data::read_example();
+    let data = Data::read(23);
 
     let base_cups: Vec<Cup> = data
         .lines()
@@ -33,7 +32,6 @@ pub fn solve() -> (i64, i64) {
     let mut cups_p2 = Cups::new(&base_cups, NUM_CUPS_P2);
 
     for _ in 0..NUM_MOVES_P1 {
-        // println!("{:#?}", cups_p1.cups);
         cups_p1.apply_move(true);
     }
     let part_1 = cups_p1.labels();
@@ -41,26 +39,9 @@ pub fn solve() -> (i64, i64) {
     for i in 0..NUM_MOVES_P2 {
         if i % LOG_EVERY == 0 {
             println!("Move {}", i);
-
-            for (i, child) in cups_p2.cups.root.children.iter().enumerate() {
-                if let Some(child) = child {
-                    let n = child.iter_children().count();
-                    if n > 0 {
-                        println!("Child {}: {} children", i, n);
-                    }
-                }
-            }
+            cups_p2.rebuild();
         }
         cups_p2.apply_move(i % LOG_EVERY == 0);
-        // sleep(Duration::from_secs_f64(0.1));
-
-        // if i == 40 {
-        //     let mut node = &cups_p2.cups.root;
-        //     for &c in &[15, 15, 15, 15, 8, 15] {
-        //         node = node.children[c].as_ref().unwrap();
-        //     }
-        //     println!("{:#?}", node);
-        // }
     }
     let mut pos_1 = cups_p2.find(1).clone();
     let after_1 = cups_p2.cups.next(&mut pos_1);
@@ -135,6 +116,7 @@ impl Cups {
         let insert_after = self.coordinates_by_cup[destination_cup as usize]
             .as_ref()
             .unwrap();
+        let should_rebuild = insert_after.len() >= 100;
         if log {
             println!(
                 "current = {} @ {:?}, removed = {:?}, insert after = {} @ {:?}",
@@ -155,6 +137,11 @@ impl Cups {
         self.put_coordinates(z, new_coords_z);
 
         self.cups.next(&mut self.current);
+
+        if should_rebuild {
+            println!("Rebuild");
+            self.rebuild();
+        }
     }
 
     fn labels(&self) -> i64 {
@@ -170,5 +157,18 @@ impl Cups {
             }
         }
         labels
+    }
+
+    fn rebuild(&mut self) {
+        let current_cup = self.cups.get(&self.current);
+        let values = self.cups.iter().map(|(_, value)| value).collect_vec();
+        let new_cups = DenseLine::new(&values);
+
+        for (coordinate, cup) in new_cups.iter() {
+            self.coordinates_by_cup[cup as usize] = Some(coordinate);
+        }
+
+        self.cups = new_cups;
+        self.current = self.find(current_cup).clone();
     }
 }
