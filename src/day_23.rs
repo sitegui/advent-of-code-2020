@@ -1,20 +1,18 @@
 use crate::data::Data;
-use crate::dense_line::{Coordinates, DenseLine, Insert3};
-use std::num::NonZeroU32;
+use itertools::Itertools;
+use std::iter;
 
-type Cup = NonZeroU32;
-const NUM_CUPS_P1: u32 = 9;
-const NUM_CUPS_P2: u32 = 1_000_000;
+type Cup = usize;
+const NUM_CUPS_P1: usize = 9;
+const NUM_CUPS_P2: usize = 1_000_000;
 const NUM_MOVES_P1: usize = 100;
 const NUM_MOVES_P2: usize = 10_000_000;
-const LOG_EVERY: usize = 1_000_000;
 
 #[derive(Debug)]
 struct Cups {
-    cups: DenseLine<Cup>,
+    next_by_cup: Vec<Cup>,
     max_cup: Cup,
-    current: Coordinates,
-    coordinates_by_cup: Vec<Option<Coordinates>>,
+    current: Cup,
 }
 
 pub fn solve() -> (i64, i64) {
@@ -25,151 +23,81 @@ pub fn solve() -> (i64, i64) {
         .next()
         .unwrap()
         .iter()
-        .map(|&b| Cup::new((b - b'0') as u32).unwrap())
+        .map(|&b| (b - b'0') as usize)
         .collect();
 
     let mut cups_p1 = Cups::new(&base_cups, NUM_CUPS_P1);
     let mut cups_p2 = Cups::new(&base_cups, NUM_CUPS_P2);
 
     for _ in 0..NUM_MOVES_P1 {
-        cups_p1.apply_move(false);
+        cups_p1.apply_move();
     }
-    let part_1 = cups_p1.labels();
+    let part_1 = cups_p1.get(1, 8).into_iter().join("").parse().unwrap();
 
-    for i in 0..NUM_MOVES_P2 {
-        if i % LOG_EVERY == 0 && cfg!(debug_asserts) {
-            println!("Move {}", i);
-        }
-        cups_p2.apply_move(i % LOG_EVERY == 0);
+    for _ in 0..NUM_MOVES_P2 {
+        cups_p2.apply_move();
     }
-    let cup_1 = Cup::new(1).unwrap();
-    let mut pos_1 = cups_p2.find(cup_1).clone();
-    let after_1 = cups_p2.cups.next(&mut pos_1);
-    let after_after_1 = cups_p2.cups.next(&mut pos_1);
-    let part_2 = after_1.get() as i64 * after_after_1.get() as i64;
+    let after_1 = cups_p2.get(1, 2);
+    let part_2 = after_1[0] as i64 * after_1[1] as i64;
 
     (part_1, part_2)
 }
 
 impl Cups {
-    fn new(base_cups: &[Cup], num_cups: u32) -> Self {
-        let more_cups = (base_cups.len() as u32 + 1..=num_cups).map(|cup| Cup::new(cup).unwrap());
+    fn new(base_cups: &[Cup], num_cups: usize) -> Self {
+        let more_cups = base_cups.len() + 1..=num_cups;
+        let cups = base_cups
+            .iter()
+            .copied()
+            .chain(more_cups)
+            .chain(iter::once(base_cups[0]));
 
-        let cups = DenseLine::new(base_cups.iter().copied().chain(more_cups));
-
-        let mut coordinates_by_cup = vec![None; num_cups as usize + 1];
-        for (coordinate, cup) in cups.iter() {
-            coordinates_by_cup[cup.get() as usize] = Some(coordinate);
+        let mut next_by_cup = vec![0; num_cups + 1];
+        for (cup, next_cup) in cups.tuple_windows::<(_, _)>() {
+            next_by_cup[cup] = next_cup;
         }
 
         Cups {
-            current: cups.iter().next().unwrap().0,
-            cups,
-            max_cup: Cup::new(num_cups).unwrap(),
-            coordinates_by_cup,
+            next_by_cup,
+            max_cup: num_cups,
+            current: base_cups[0],
         }
     }
 
-    fn iter(&self) -> impl Iterator<Item = Cup> + '_ {
-        self.cups.iter().map(|(_, cup)| cup)
+    fn get(&self, start: Cup, len: usize) -> Vec<Cup> {
+        let mut result = Vec::with_capacity(len);
+
+        let mut current = start;
+        while result.len() < len {
+            current = self.next_by_cup[current];
+            result.push(current);
+        }
+
+        result
     }
 
-    fn find(&self, cup: Cup) -> &Coordinates {
-        self.coordinates_by_cup[cup.get() as usize]
-            .as_ref()
-            .unwrap()
-    }
-
-    fn take_coordinates(&mut self, cup: Cup) -> Coordinates {
-        self.coordinates_by_cup[cup.get() as usize].take().unwrap()
-    }
-
-    fn put_coordinates(&mut self, cup: Cup, coordinates: Coordinates) {
-        let old = self.coordinates_by_cup[cup.get() as usize].replace(coordinates);
-        debug_assert!(old.is_none());
-    }
-
-    fn apply_move(&mut self, log: bool) {
-        let result = self.cups.get_1_and_remove_3(&self.current);
-
+    fn apply_move(&mut self) {
         // Determine the destination cup
-        let mut destination_cup = result.gotten().get();
-        let [x, y, z] = result.removed();
+        let mut destination = self.current;
+        let x = self.next_by_cup[self.current];
+        let y = self.next_by_cup[x];
+        let z = self.next_by_cup[y];
         loop {
-            destination_cup -= 1;
-            if destination_cup == 0 {
-                destination_cup = self.max_cup.get();
+            destination -= 1;
+            if destination == 0 {
+                destination = self.max_cup;
             }
-            if destination_cup != x.get()
-                && destination_cup != y.get()
-                && destination_cup != z.get()
-            {
+            if destination != x && destination != y && destination != z {
                 break;
             }
         }
 
-        let insertion = Insert3::new(
-            [x, y, z],
-            [
-                self.take_coordinates(x),
-                self.take_coordinates(y),
-                self.take_coordinates(z),
-            ],
-        );
-        let insert_after = self.coordinates_by_cup[destination_cup as usize]
-            .as_ref()
-            .unwrap();
-        let should_rebuild = insert_after.len() >= 16;
-        if log && cfg!(debug_asserts) {
-            self.cups.print_stats();
-            println!(
-                "current = {} @ {:?}, removed = {:?}, insert after = {} @ {:?}",
-                result.gotten(),
-                self.current,
-                result.removed(),
-                destination_cup,
-                insert_after,
-            );
-        }
+        let after_destination = self.next_by_cup[destination];
+        let after_z = self.next_by_cup[z];
 
-        let insertion = self.cups.insert_3(insert_after, insertion);
-
-        // Update index
-        let [new_coords_x, new_coords_y, new_coords_z] = insertion.into_new_coordinates();
-        self.put_coordinates(x, new_coords_x);
-        self.put_coordinates(y, new_coords_y);
-        self.put_coordinates(z, new_coords_z);
-
-        self.cups.next(&mut self.current);
-
-        if should_rebuild {
-            self.rebuild();
-        }
-    }
-
-    fn labels(&self) -> i64 {
-        let cup_1 = self.iter().position(|cup| cup.get() == 1).unwrap();
-        let mut labels = 0;
-        for (i, cup) in self.iter().enumerate() {
-            #[allow(clippy::comparison_chain)]
-            if i > cup_1 {
-                let exp = self.max_cup.get() as usize - 1 + cup_1 - i;
-                labels += cup.get() as i64 * 10i64.pow(exp as u32);
-            } else if i < cup_1 {
-                let exp = cup_1 - i - 1;
-                labels += cup.get() as i64 * 10i64.pow(exp as u32);
-            }
-        }
-        labels
-    }
-
-    fn rebuild(&mut self) {
-        let current_cup = self.cups.get(&self.current);
-        self.cups = DenseLine::new(self.cups.iter().map(|(_, value)| value));
-
-        for (coordinate, cup) in self.cups.iter() {
-            self.coordinates_by_cup[cup.get() as usize] = Some(coordinate);
-        }
-        self.current = self.find(current_cup).clone();
+        self.next_by_cup[destination] = x;
+        self.next_by_cup[z] = after_destination;
+        self.next_by_cup[self.current] = after_z;
+        self.current = after_z;
     }
 }

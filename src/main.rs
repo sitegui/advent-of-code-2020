@@ -5,7 +5,6 @@ use std::fmt;
 use std::time::{Duration, Instant};
 
 mod data;
-mod dense_line;
 mod iter_utils;
 mod matrix;
 mod parser;
