@@ -1,21 +1,32 @@
 use crate::data::Data;
 use crate::parser::Parser;
-use std::collections::BTreeSet;
+use std::mem;
+
+const MAX_ABS_Q: i16 = 72;
+const MAX_ABS_R: i16 = 72;
+const TILES_VEC_LEN: usize = 4 * (MAX_ABS_Q as usize) * (MAX_ABS_R as usize);
 
 /// In axial coordinates
 /// https://www.redblobgames.com/grids/hexagons/#coordinates-axial
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Default)]
-struct TilePosition(i16, i16);
+struct TilePosition {
+    q: i16,
+    r: i16,
+    /// A "linear" index
+    index: usize,
+}
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 struct Floor {
-    black_tiles: BTreeSet<TilePosition>,
+    black_tiles: Vec<bool>,
+    new_black_tiles: Vec<bool>,
+    visited_white: Vec<bool>,
 }
 
 pub fn solve() -> (i64, i64) {
     let data = Data::read(24);
 
-    let mut floor = Floor::default();
+    let mut floor = Floor::new();
     for line in data.lines() {
         floor.flip_tile(line);
     }
@@ -31,6 +42,14 @@ pub fn solve() -> (i64, i64) {
 }
 
 impl Floor {
+    fn new() -> Self {
+        Floor {
+            black_tiles: vec![false; TILES_VEC_LEN],
+            new_black_tiles: vec![false; TILES_VEC_LEN],
+            visited_white: vec![false; TILES_VEC_LEN],
+        }
+    }
+
     fn flip_tile(&mut self, mut directions: &[u8]) {
         let mut pos = TilePosition::default();
         while !directions.is_empty() {
@@ -51,58 +70,44 @@ impl Floor {
             };
         }
 
-        if !self.black_tiles.insert(pos) {
-            // Already present => flip to white
-            self.black_tiles.remove(&pos);
-        }
+        let index = pos.index();
+        self.black_tiles[index] = !self.black_tiles[index];
     }
 
     fn num_black(&self) -> usize {
-        self.black_tiles.len()
+        self.black_tiles.iter().filter(|&&t| t).count()
     }
 
     fn is_black(&self, pos: TilePosition) -> bool {
-        self.black_tiles.contains(&pos)
+        self.black_tiles[pos.index()]
     }
 
     fn evolve(&mut self) {
-        let mut visited_white = BTreeSet::new();
-        let mut new_black_tiles = BTreeSet::new();
+        for cell in &mut self.visited_white {
+            *cell = false;
+        }
+        for cell in &mut self.new_black_tiles {
+            *cell = false;
+        }
 
-        fn inspect_black(
-            floor: &Floor,
-            visited_white: &mut BTreeSet<TilePosition>,
-            new_black_tiles: &mut BTreeSet<TilePosition>,
-            pos: TilePosition,
-        ) {
-            // Check white tiles that are bordering this one
-            for &neighbor in pos.neighbors().iter() {
-                if !floor.is_black(neighbor) {
-                    inspect_white(floor, visited_white, new_black_tiles, neighbor);
+        for (index, &is_black) in self.black_tiles.iter().enumerate() {
+            if is_black {
+                let pos = TilePosition::from_index(index);
+
+                // Check white tiles that are bordering this one
+                for &neighbor in pos.neighbors().iter() {
+                    if !self.is_black(neighbor) && !self.visited_white[neighbor.index()] {
+                        self.visited_white[neighbor.index()] = true;
+                        self.new_black_tiles[neighbor.index()] =
+                            self.should_flip_from_white(neighbor);
+                    }
                 }
-            }
 
-            if !floor.should_flip_from_back(pos) {
-                new_black_tiles.insert(pos);
+                self.new_black_tiles[pos.index()] = !self.should_flip_from_back(pos);
             }
         }
 
-        fn inspect_white(
-            floor: &Floor,
-            visited_white: &mut BTreeSet<TilePosition>,
-            new_black_tiles: &mut BTreeSet<TilePosition>,
-            pos: TilePosition,
-        ) {
-            if visited_white.insert(pos) && floor.should_flip_from_white(pos) {
-                new_black_tiles.insert(pos);
-            }
-        }
-
-        for &pos in &self.black_tiles {
-            inspect_black(self, &mut visited_white, &mut new_black_tiles, pos);
-        }
-
-        self.black_tiles = new_black_tiles;
+        mem::swap(&mut self.black_tiles, &mut self.new_black_tiles);
     }
 
     fn should_flip_from_back(&self, pos: TilePosition) -> bool {
@@ -139,23 +144,41 @@ impl Floor {
 /// Based on:
 /// https://www.redblobgames.com/grids/hexagons/#neighbors-axial
 impl TilePosition {
+    fn from_index(index: usize) -> Self {
+        let x = index % (2 * MAX_ABS_Q as usize);
+        let y = index / (2 * MAX_ABS_Q as usize);
+
+        let q = x as i16 - MAX_ABS_Q;
+        let r = y as i16 - MAX_ABS_R;
+
+        TilePosition { q, r, index }
+    }
+
     fn east(self) -> Self {
-        TilePosition(self.0 + 1, self.1)
+        self.with_offset(1, 0)
     }
     fn west(self) -> Self {
-        TilePosition(self.0 - 1, self.1)
+        self.with_offset(-1, 0)
     }
     fn northeast(self) -> Self {
-        TilePosition(self.0 + 1, self.1 - 1)
+        self.with_offset(1, -1)
     }
     fn northwest(self) -> Self {
-        TilePosition(self.0, self.1 - 1)
+        self.with_offset(0, -1)
     }
     fn southeast(self) -> Self {
-        TilePosition(self.0, self.1 + 1)
+        self.with_offset(0, 1)
     }
     fn southwest(self) -> Self {
-        TilePosition(self.0 - 1, self.1 + 1)
+        self.with_offset(-1, 1)
+    }
+    fn with_offset(self, dq: i16, dr: i16) -> Self {
+        let index = self.index as isize + dq as isize + dr as isize * (2 * MAX_ABS_Q as isize);
+        TilePosition {
+            q: self.q + dq,
+            r: self.r + dr,
+            index: index as usize,
+        }
     }
     fn neighbors(self) -> [Self; 6] {
         [
@@ -166,5 +189,18 @@ impl TilePosition {
             self.southeast(),
             self.southwest(),
         ]
+    }
+
+    /// Convert from `(q, r)` to a vector index
+    fn index(self) -> usize {
+        debug_assert!(self.q >= -MAX_ABS_Q);
+        debug_assert!(self.q < MAX_ABS_Q);
+        debug_assert!(self.r >= -MAX_ABS_R);
+        debug_assert!(self.r < MAX_ABS_R);
+
+        let x = (self.q + MAX_ABS_Q) as usize;
+        let y = (self.r + MAX_ABS_R) as usize;
+
+        y * (2 * MAX_ABS_Q as usize) + x
     }
 }
