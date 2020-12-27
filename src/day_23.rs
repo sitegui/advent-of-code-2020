@@ -2,7 +2,7 @@ use crate::data::Data;
 use itertools::Itertools;
 use std::iter;
 
-type Cup = usize;
+type Cup = u32;
 const NUM_CUPS_P1: usize = 9;
 const NUM_CUPS_P2: usize = 1_000_000;
 const NUM_MOVES_P1: usize = 100;
@@ -23,7 +23,7 @@ pub fn solve() -> (i64, i64) {
         .next()
         .unwrap()
         .iter()
-        .map(|&b| (b - b'0') as usize)
+        .map(|&b| (b - b'0') as u32)
         .collect();
 
     let mut cups_p1 = Cups::new(&base_cups, NUM_CUPS_P1);
@@ -45,7 +45,7 @@ pub fn solve() -> (i64, i64) {
 
 impl Cups {
     fn new(base_cups: &[Cup], num_cups: usize) -> Self {
-        let more_cups = base_cups.len() + 1..=num_cups;
+        let more_cups = base_cups.len() as u32 + 1..=num_cups as u32;
         let cups = base_cups
             .iter()
             .copied()
@@ -54,12 +54,12 @@ impl Cups {
 
         let mut next_by_cup = vec![0; num_cups + 1];
         for (cup, next_cup) in cups.tuple_windows::<(_, _)>() {
-            next_by_cup[cup] = next_cup;
+            next_by_cup[cup as usize] = next_cup;
         }
 
         Cups {
             next_by_cup,
-            max_cup: num_cups,
+            max_cup: num_cups as u32,
             current: base_cups[0],
         }
     }
@@ -69,7 +69,7 @@ impl Cups {
 
         let mut current = start;
         while result.len() < len {
-            current = self.next_by_cup[current];
+            current = self.next_by_cup[current as usize];
             result.push(current);
         }
 
@@ -79,9 +79,9 @@ impl Cups {
     fn apply_move(&mut self) {
         // Determine the destination cup
         let mut destination = self.current;
-        let x = self.next_by_cup[self.current];
-        let y = self.next_by_cup[x];
-        let z = self.next_by_cup[y];
+        let x = self.next_by_cup[self.current as usize];
+        let y = self.next_by_cup[x as usize];
+        let z = self.next_by_cup[y as usize];
         loop {
             destination -= 1;
             if destination == 0 {
@@ -92,12 +92,12 @@ impl Cups {
             }
         }
 
-        let after_destination = self.next_by_cup[destination];
-        let after_z = self.next_by_cup[z];
+        let after_destination = self.next_by_cup[destination as usize];
+        let after_z = self.next_by_cup[z as usize];
 
-        self.next_by_cup[destination] = x;
-        self.next_by_cup[z] = after_destination;
-        self.next_by_cup[self.current] = after_z;
+        self.next_by_cup[destination as usize] = x;
+        self.next_by_cup[z as usize] = after_destination;
+        self.next_by_cup[self.current as usize] = after_z;
         self.current = after_z;
     }
 }
